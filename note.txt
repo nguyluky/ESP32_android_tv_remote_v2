@@ -1,0 +1,3 @@
+người dùng dữ nút ngần 3 giâu thì điều kiển nhấp nháy xanh:
+lúc này thì esp32 sẽ mở một điểm kết nối cho người dùng truy cập.
+

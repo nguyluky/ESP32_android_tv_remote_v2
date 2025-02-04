@@ -12,15 +12,15 @@
 class PairingMessageManager
 {
 private:
-    const char *manufacturer;
-    const char *model;
+    char *manufacturer;
+    char *model;
 public:
     PairingMessageManager(/* args */);
     bool sendPairingRequest(WiFiClientSecure &client, const char *service_name);
     bool sendPairingOption(WiFiClientSecure &client) ;
     bool sendPairingConfiguration(WiFiClientSecure &client) ;
     bool sendPairingSecret(WiFiClientSecure &client, const uint8_t *secret) ;
-    bool sendMessage(WiFiClientSecure &client, uint8_t *buffer, size_t &size) ;
+
 };
 
 extern PairingMessageManager pairingMessageManager;

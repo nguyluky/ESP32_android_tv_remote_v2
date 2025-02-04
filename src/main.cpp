@@ -3,8 +3,8 @@
 #include <ESPmDNS.h>
 #include "certificate/CertificateGenerator.h"
 
-static char* ssid = "SieuCoi";
-static char* password = "0902838500";
+const static char* ssid = "SieuCoi";
+const static char* password = "0902838500";
 
 
 void getMDNS() {

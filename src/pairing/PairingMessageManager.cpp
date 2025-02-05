@@ -5,40 +5,33 @@ PairingMessageManager::PairingMessageManager() {
     model = "Generic";
 }
 
-bool send(WiFiClientSecure &client, Pairing__PairingMessage &message) {
+uint8_t *PairingMessageManager::encodePairingMessage(Pairing__PairingMessage &message) {
+    // the firt number is the size of the buffer
     size_t bufferSize = pairing__pairing_message__get_packed_size(&message);
     if (bufferSize == 0) {
         Serial.println("[ERROR]: Buffer size is 0");
-        return false;
+        return NULL;
     }
 
-    uint8_t *buffer = (uint8_t *)malloc(bufferSize);
+    uint8_t *buffer = (uint8_t *)malloc(bufferSize + 1);
     if (buffer == NULL) {
         Serial.println("[ERROR]: Memory allocation failed");
-        return false;
+        return NULL;
     }
 
-    size_t packedSize = pairing__pairing_message__pack(&message, buffer);
+    buffer[0] = bufferSize;
+
+    size_t packedSize = pairing__pairing_message__pack(&message, buffer+1);
     if (packedSize != bufferSize) {
         Serial.println("[ERROR]: Packing failed");
         free(buffer);
-        return false;
+        return NULL;
     }
-    Serial.printf("Encoded size: %zu bytes\n", packedSize);
-
-    if (client.write(buffer, bufferSize)) {
-        Serial.println("[ERROR]: Sending failed");
-        free(buffer);
-        return false;
-    }
-
-    Serial.println("[DEBUG]: Sent Pairing Request");
-
-    free(buffer);
-    return true;
+    return buffer;
 }
 
-bool PairingMessageManager::sendPairingRequest(WiFiClientSecure &client, const char *service_name) {
+// remember to free the buffer after using it
+uint8_t *PairingMessageManager::createPairingRequest(char *service_name) {
     Pairing__PairingMessage message = PAIRING__PAIRING_MESSAGE__INIT;
     Pairing__PairingRequest request = PAIRING__PAIRING_REQUEST__INIT;
     message.pairing_request = &request;
@@ -48,27 +41,31 @@ bool PairingMessageManager::sendPairingRequest(WiFiClientSecure &client, const c
 
     message.status = PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK;
     message.protocol_version = 2;
-    return send(client, message);
+
+    return encodePairingMessage(message); 
 }
 
-bool PairingMessageManager::sendPairingOption(WiFiClientSecure &client) {
+uint8_t* PairingMessageManager::createPairingOption() {
     Pairing__PairingMessage message = PAIRING__PAIRING_MESSAGE__INIT;
-    Pairing__PairingOption option = PAIRING__PAIRING_OPTION__INIT;
-    Pairing__PairingEncoding encoding = PAIRING__PAIRING_ENCODING__INIT;
+        Pairing__PairingOption option = PAIRING__PAIRING_OPTION__INIT;
+        option.preferred_role = PAIRING__ROLE_TYPE__ROLE_TYPE_INPUT;
+            Pairing__PairingEncoding encodings[] = {PAIRING__PAIRING_ENCODING__INIT};
+            encodings[0].type = PAIRING__PAIRING_ENCODING__ENCODING_TYPE__ENCODING_TYPE_HEXADECIMAL;
+            encodings[0].symbol_length = 6;
+        Pairing__PairingEncoding *array = encodings;
+        option.input_encodings = &array;
+        option.n_input_encodings = 1;
 
-    option.preferred_role = PAIRING__ROLE_TYPE__ROLE_TYPE_INPUT;
-
-    encoding.type = PAIRING__PAIRING_ENCODING__ENCODING_TYPE__ENCODING_TYPE_HEXADECIMAL;
-    encoding.symbol_length = 6;
 
     message.pairing_option = &option;
-    message.pairing_option->preferred_role = PAIRING__ROLE_TYPE__ROLE_TYPE_INPUT;
     message.status = PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK;
     message.protocol_version = 2;
-    return send(client, message);
+
+    uint8_t *buffer = encodePairingMessage(message);
+    return buffer;
 }
 
-bool PairingMessageManager::sendPairingConfiguration(WiFiClientSecure &client) {
+uint8_t* PairingMessageManager::createPairingConfiguration() {
     Pairing__PairingMessage message = PAIRING__PAIRING_MESSAGE__INIT;
     Pairing__PairingConfiguration configuration = PAIRING__PAIRING_CONFIGURATION__INIT;
     message.pairing_configuration = &configuration;
@@ -82,10 +79,10 @@ bool PairingMessageManager::sendPairingConfiguration(WiFiClientSecure &client) {
 
     message.status = PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK;
     message.protocol_version = 2;
-    return send(client, message);
+    return encodePairingMessage(message);
 }
 
-bool PairingMessageManager::sendPairingSecret(WiFiClientSecure &client, const uint8_t *secret) {
+uint8_t *PairingMessageManager::createPairingSecret(const uint8_t *secret) {
     Pairing__PairingMessage message = PAIRING__PAIRING_MESSAGE__INIT;
     Pairing__PairingSecret secretMessage = PAIRING__PAIRING_SECRET__INIT;
     message.pairing_secret = &secretMessage;
@@ -95,5 +92,5 @@ bool PairingMessageManager::sendPairingSecret(WiFiClientSecure &client, const ui
 
     message.status = PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK;
     message.protocol_version = 2;
-    return send(client, message);
+    return encodePairingMessage(message);
 }

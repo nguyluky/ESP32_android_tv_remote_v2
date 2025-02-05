@@ -10,17 +10,14 @@
 #define PAIRINGMANAGER_H
 class PairingManager {
 public:
-    PairingManager(char* host, uint16_t port, char* service_name);
-
     bool sendCode(const String& code);
-    void start();
+    void begin(IPAddress host, uint16_t port, char* service_name);
+    bool connected();
+    void loop();
 
 private:
     std::vector<uint8_t> hexStringToBytes(const String &hexString);
     void handleResponse(Pairing__PairingMessage *message);
-    char* host;
-    uint16_t port;
-    char* service_name;
     WiFiClientSecure client;
     std::vector<uint8_t> chunks;
 };

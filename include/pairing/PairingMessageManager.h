@@ -15,12 +15,12 @@ private:
     char *manufacturer;
     char *model;
 public:
-    PairingMessageManager(/* args */);
-    bool sendPairingRequest(WiFiClientSecure &client, const char *service_name);
-    bool sendPairingOption(WiFiClientSecure &client) ;
-    bool sendPairingConfiguration(WiFiClientSecure &client) ;
-    bool sendPairingSecret(WiFiClientSecure &client, const uint8_t *secret) ;
-
+    PairingMessageManager();
+    uint8_t* createPairingRequest(char *service_name);
+    uint8_t* createPairingOption() ;
+    uint8_t* createPairingConfiguration() ;
+    uint8_t* createPairingSecret(const uint8_t *secret) ;
+    uint8_t* encodePairingMessage(Pairing__PairingMessage &message);
 };
 
 extern PairingMessageManager pairingMessageManager;

@@ -2,45 +2,39 @@
 // #include "remote/remotemessage.pb-c.h"
 #include "remote/RemoteMessageManager.h"
 
-bool send(WiFiClientSecure &client, Remote__RemoteMessage &message)
+RemoteMessageManager remoteMessageManager;
+
+uint8_t* RemoteMessageManager::encodeMessage(Remote__RemoteMessage &message)
 {
     size_t bufferSize = remote__remote_message__get_packed_size(&message);
     if (bufferSize == 0)
     {
         Serial.println("[ERROR]: Buffer size is 0");
-        return false;
+        return NULL;
     }
 
-    uint8_t *buffer = (uint8_t *)malloc(bufferSize);
+    uint8_t *buffer = (uint8_t *)malloc(bufferSize + 1);
     if (buffer == NULL)
     {
         Serial.println("[ERROR]: Memory allocation failed");
-        return false;
+        return NULL;
     }
 
-    size_t packedSize = remote__remote_message__pack(&message, buffer);
+    buffer[0] = bufferSize;
+
+    size_t packedSize = remote__remote_message__pack(&message, buffer + 1);
     if (packedSize != bufferSize)
     {
         Serial.println("[ERROR]: Packing failed");
         free(buffer);
-        return false;
+        return NULL;
     }
     Serial.printf("Encoded size: %zu bytes\n", packedSize);
 
-    if (client.write(buffer, bufferSize))
-    {
-        Serial.println("[ERROR]: Sending failed");
-        free(buffer);
-        return false;
-    }
-
-    Serial.println("[DEBUG]: Sent Remote Request");
-
-    free(buffer);
-    return true;
+    return buffer;
 }
 
-bool RemoteMessageManager::sendMessageConfig(WiFiClientSecure &client, char *model, char *vendor)
+uint8_t* RemoteMessageManager::createMessageConfig(char *model, char *vendor)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteConfigure config = REMOTE__REMOTE_CONFIGURE__INIT;
@@ -58,10 +52,11 @@ bool RemoteMessageManager::sendMessageConfig(WiFiClientSecure &client, char *mod
     config.device_info = &device;
     message.remote_configure = &config;
 
-    return true;
+
+    return encodeMessage(message);
 }
 
-bool RemoteMessageManager::sendRemoteSetActive(WiFiClientSecure &client, bool active)
+uint8_t* RemoteMessageManager::createRemoteSetActive(bool active)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteSetActive _active = REMOTE__REMOTE_SET_ACTIVE__INIT;
@@ -69,10 +64,10 @@ bool RemoteMessageManager::sendRemoteSetActive(WiFiClientSecure &client, bool ac
     _active.active = active;
     message.remote_set_active = &_active;
 
-    return send(client, message);
+    return encodeMessage(message);
 }
 
-bool sendRemotePingResponse(WiFiClientSecure &client, int32_t val1)
+uint8_t* RemoteMessageManager::createRemotePingResponse(int32_t val1)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemotePingResponse response = REMOTE__REMOTE_PING_RESPONSE__INIT;
@@ -81,10 +76,11 @@ bool sendRemotePingResponse(WiFiClientSecure &client, int32_t val1)
 
     message.remote_ping_response = &response;
 
-    return send(client, message);
+    // return send(client, message);
+    return encodeMessage(message);
 }
 
-bool sendRemoteKeyInject(WiFiClientSecure &client, Remote__RemoteKeyCode keyCode, Remote__RemoteDirection direction)
+uint8_t* RemoteMessageManager::createRemoteKeyInject(Remote__RemoteKeyCode keyCode, Remote__RemoteDirection direction)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteKeyInject keyInject = REMOTE__REMOTE_KEY_INJECT__INIT;
@@ -94,7 +90,8 @@ bool sendRemoteKeyInject(WiFiClientSecure &client, Remote__RemoteKeyCode keyCode
 
     message.remote_key_inject = &keyInject;
 
-    return send(client, message);
+    // return send(client, message);
+    return encodeMessage(message);
 }
 
 // TODO: chưa biết cái này làm sao
@@ -109,17 +106,18 @@ bool sendRemoteKeyInject(WiFiClientSecure &client, Remote__RemoteKeyCode keyCode
 //     return send(client, message);
 // }
 
-bool sendRemoteResetPreferredAudioDevice(WiFiClientSecure &client)
+uint8_t* RemoteMessageManager::createRemoteResetPreferredAudioDevice()
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteResetPreferredAudioDevice reset = REMOTE__REMOTE_RESET_PREFERRED_AUDIO_DEVICE__INIT;
 
     message.remote_reset_preferred_audio_device = &reset;
 
-    return send(client, message);
+    // return send(client, message);
+    return encodeMessage(message);
 }
 
-bool RemoteMessageManager::sendRemoteImeKeyInject(WiFiClientSecure &client, char *appPackage, Remote__RemoteTextFieldStatus status)
+uint8_t* RemoteMessageManager::createRemoteImeKeyInject(char *appPackage, Remote__RemoteTextFieldStatus status)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteImeKeyInject keyInject = REMOTE__REMOTE_IME_KEY_INJECT__INIT;
@@ -131,10 +129,11 @@ bool RemoteMessageManager::sendRemoteImeKeyInject(WiFiClientSecure &client, char
     keyInject.app_info = &appInfo;
     message.remote_ime_key_inject = &keyInject;
 
-    return send(client, message);
+    // return send(client, message);
+    return encodeMessage(message);
 }
 
-bool RemoteMessageManager::sendRemoteRemoteAppLinkLaunchRequest(WiFiClientSecure &client, char *appLink)
+uint8_t* RemoteMessageManager::createRemoteRemoteAppLinkLaunchRequest(char *appLink)
 {
     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
     Remote__RemoteAppLinkLaunchRequest request = REMOTE__REMOTE_APP_LINK_LAUNCH_REQUEST__INIT;
@@ -142,7 +141,7 @@ bool RemoteMessageManager::sendRemoteRemoteAppLinkLaunchRequest(WiFiClientSecure
     request.app_link = appLink;
     message.remote_app_link_launch_request = &request;
 
-    return send(client, message);
+    return encodeMessage(message);
 }
 
 // };

@@ -4,14 +4,8 @@
 #include "remote/remotemessage.pb-c.h"
 #include "remote/RemoteMessageManager.h"
 #include "certificate/CertificateGenerator.h"
+#include "utils.h"
 
-void printPacket(uint8_t *packet, size_t len) {
-    Serial.print("[");
-    for (size_t i = 0; i < len; i++) {
-        Serial.printf("%02X ", packet[i]);
-    }
-    Serial.println("]");
-}
 
 class RemoteManager {
 public:
@@ -48,13 +42,17 @@ public:
             Remote__RemoteMessage *message = remote__remote_message__unpack(NULL, chunks.size() - 1, chunks.data() + 1);
 
             if (message->remote_configure) {
-                remoteMessageManager.sendMessageConfig(client, "Mi TV", "Xiaomi");
+                uint8_t *buffer = remoteMessageManager.createMessageConfig("Mi TV", "Xiaomi");
+                client.write(buffer, buffer[0] + 1);
             }
             else if (message->remote_set_active) {
-                remoteMessageManager.sendRemoteSetActive(client, true);
+                uint8_t *buffer = remoteMessageManager.createRemoteSetActive(true);
+                client.write(buffer, buffer[0] + 1);
             }
             else if (message->remote_ping_request) {
-                remoteMessageManager.sendRemotePingResponse(client, message->remote_ping_request->val1);
+                // remoteMessageManager.sendRemotePingResponse(client, message->remote_ping_request->val1);
+                uint8_t *buffer = remoteMessageManager.createRemotePingResponse(message->remote_ping_request->val1);
+                client.write(buffer, buffer[0] + 1);
             }
             else if (message->remote_ime_batch_edit) {
                 Serial.print("[INFO]: IME Batch Edit");
@@ -103,15 +101,24 @@ public:
     }
 
     bool sendPower() {
-        return remoteMessageManager.sendRemoteKeyInject(client,REMOTE__REMOTE_KEY_CODE__KEYCODE_POWER, REMOTE__REMOTE_DIRECTION__SHORT);
+        uint8_t *buffer = remoteMessageManager.createRemoteKeyInject(REMOTE__REMOTE_KEY_CODE__KEYCODE_POWER, REMOTE__REMOTE_DIRECTION__SHORT);
+        client.write(buffer, buffer[0] + 1);
+        return true;
     }
     
     bool sendKey(Remote__RemoteKeyCode keyCode, Remote__RemoteDirection direction) {
-        return remoteMessageManager.sendRemoteKeyInject(client, keyCode, direction);
+        // return remoteMessageManager.sendRemoteKeyInject(client, keyCode, direction);
+        uint8_t *buffer = remoteMessageManager.createRemoteKeyInject(keyCode, direction);
+        client.write(buffer, buffer[0] + 1);
+        return true;
     }
 
     bool sendAppLink(char *appLink) {
-        return remoteMessageManager.sendRemoteRemoteAppLinkLaunchRequest(client, appLink);
+        // return remoteMessageManager.sendRemoteRemoteAppLinkLaunchRequest(client, appLink);
+
+        uint8_t *buffer = remoteMessageManager.createRemoteRemoteAppLinkLaunchRequest(appLink);
+        client.write(buffer, buffer[0] + 1);
+        return true;
     } 
 
     bool stop() {

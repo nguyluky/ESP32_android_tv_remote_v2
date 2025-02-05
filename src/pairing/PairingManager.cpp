@@ -1,12 +1,6 @@
 #include "pairing/PairingManager.h"
 
-PairingManager::PairingManager(char* host, uint16_t port, char* service_name) {
-    this->host = host;
-    this->port = port;
-    this->service_name = service_name;
-
-}
-    // : host(host), port(port), service_name(service_name), client() {}
+PairingMessageManager pairingMessageManager;
 
 bool PairingManager::sendCode(const String& code) {
     if (code.length() != 6) {
@@ -41,22 +35,36 @@ bool PairingManager::sendCode(const String& code) {
     // TODO: check if the hash is correct
     // std::vector<uint8_t> hashVec = hexStringToBytes();
 
-    pairingMessageManager.sendPairingSecret(client, hash);
+    uint8_t* buffer = pairingMessageManager.createPairingSecret(hash);
+    client.write(buffer, buffer[0] + 1);
+    free(buffer);
     return true;
 }
 
-void PairingManager::start() {
+bool PairingManager::connected() {
+    return client.connected();
+}
+
+void PairingManager::begin(IPAddress host, uint16_t port, char* service_name) {
     client.setCertificate(client_cert_pem);   // Cài đặt chứng chỉ
     client.setPrivateKey(client_key_pem); 
+    client.setCACert(rootCA);
 
+    Serial.printf("[DEBUG]: %s:%d Pairing started\n", host.toString(), port);
     if (!client.connect(host, port)) {
-        Serial.println("{ERROR]: Connection failed!");
+        Serial.println("[ERROR]: Connection failed!");
         return;
     }
 
-    Serial.printf("[DEBUG]: %s Pairing connected\n", host);
-    pairingMessageManager.sendPairingRequest(client, service_name);
+    Serial.printf("[DEBUG]: %s Pairing connected\n", host.toString());
+    uint8_t* buffer = pairingMessageManager.createPairingRequest(service_name);
+    client.write(buffer, buffer[0] + 1);
+    free(buffer);
 
+    Serial.printf("[DEBUG]: %s Pairing Connection closed\n", host);
+}
+
+void PairingManager::loop() {
     while (client.connected()) {
         while (client.available()) {
             uint8_t buffer[256];
@@ -77,8 +85,6 @@ void PairingManager::start() {
             }
         }
     }
-
-    Serial.printf("[DEBUG]: %s Pairing Connection closed\n", host);
 }
 
 std::vector<uint8_t> PairingManager::hexStringToBytes(const String &hexString) {
@@ -101,20 +107,24 @@ std::vector<uint8_t> PairingManager::hexStringToBytes(const String &hexString) {
 }   
 void PairingManager::handleResponse(Pairing__PairingMessage *message) {
     if (message->pairing_configuration_ack) {
-        pairingMessageManager.sendPairingConfiguration(client);
+        uint8_t* buffer = pairingMessageManager.createPairingConfiguration();
+        client.write(buffer, buffer[0] + 1);
+        free(buffer);
     } 
     else if (message->pairing_option) {
-        pairingMessageManager.sendPairingOption(client);
+        uint8_t* buffer = pairingMessageManager.createPairingOption();
+        client.write(buffer, buffer[0] + 1);
+        free(buffer);
     } 
     else if (message->pairing_configuration_ack) {
         // Emit 'secret' event
         // await input from user
     } 
     else if (message->pairing_secret_ack) {
-        Serial.printf("[DEBUG]: %s Paired!\n", host);
+        Serial.printf("[DEBUG]: Paired!\n");
         client.stop();
     } 
     else {
-        Serial.printf("[ERROR]: %s What Else?\n", host);
+        Serial.printf("[ERROR]: What Else?\n");
     }
 }

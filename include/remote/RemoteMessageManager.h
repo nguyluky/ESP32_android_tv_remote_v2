@@ -6,26 +6,15 @@
 #define REMOTE_MESSAGE_MANAGER_H
 class RemoteMessageManager {
 public:
-    RemoteMessageManager() ;
-    bool sendMessageConfig(WiFiClientSecure &client, char *model, char *vendor) ;
-    bool sendRemoteSetActive(WiFiClientSecure &client, bool active) ;
-    bool sendRemotePingResponse(WiFiClientSecure &client, int32_t val1) ;
-    bool sendRemoteKeyInject(WiFiClientSecure &client, Remote__RemoteKeyCode keyCode, Remote__RemoteDirection direction) ;
-    // TODO: chưa biết cái này làm sao
-    // bool sendRemoteAdjustVolumeLevel(WiFiClientSecure &client, ) {
-    //     Remote__RemoteMessage message = REMOTE__REMOTE_MESSAGE__INIT;
-    //     Remote__RemoteAdjustVolumeLevel volumeLevel = REMOTE__REMOTE_ADJUST_VOLUME_LEVEL__INIT;
+    uint8_t* createMessageConfig(char *model, char *vendor) ;
+    uint8_t* createRemoteSetActive(bool active) ;
+    uint8_t* createRemotePingResponse(int32_t val1) ;
+    uint8_t *createRemoteKeyInject(Remote__RemoteKeyCode keyCode, Remote__RemoteDirection direction) ;
+    uint8_t *createRemoteResetPreferredAudioDevice() ;
+    uint8_t *createRemoteImeKeyInject(char *appPackage, Remote__RemoteTextFieldStatus status) ;
+    uint8_t *createRemoteRemoteAppLinkLaunchRequest(char *appLink);
 
-    //     volumeLevel.base
-
-
-    //     message.message_adjust_volume_level = &volumeLevel;
-
-    //     return send(client, message);
-    // }
-    bool sendRemoteResetPreferredAudioDevice(WiFiClientSecure &client) ;
-    bool sendRemoteImeKeyInject(WiFiClientSecure &client, char *appPackage, Remote__RemoteTextFieldStatus status) ;
-    bool sendRemoteRemoteAppLinkLaunchRequest(WiFiClientSecure &client, char *appLink);
+    uint8_t* encodeMessage(Remote__RemoteMessage &message) ;
 };
 
 

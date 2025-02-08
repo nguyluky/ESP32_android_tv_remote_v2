@@ -10631,7 +10631,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 break;
             case WC_HASH_TYPE_SHA:
         #ifndef NO_SHA
-                ret = wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
+                ret = wolfSSL_SHA_Update((W_SHA_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
         #endif
                 break;
@@ -10758,7 +10758,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 break;
             case WC_HASH_TYPE_SHA:
         #ifndef NO_SHA
-                ret = wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
+                ret = wolfSSL_SHA_Final(md, (W_SHA_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA_DIGEST_SIZE;
         #endif
                 break;

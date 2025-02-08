@@ -105,7 +105,7 @@
 
 
 /* Optional OPENSSL compatibility */
-/* #define OPENSSL_EXTRA */
+#define OPENSSL_EXTRA
 /* #define OPENSSL_ALL */
 
 /* when you want to use pkcs7 */

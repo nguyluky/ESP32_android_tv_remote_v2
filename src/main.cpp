@@ -1,7 +1,7 @@
 #ifndef UNIT_TEST
 #include <Arduino.h>
 #include <WiFi.h>
-#include "RemoteClient.h"
+#include "pairing/PairingManager.h"
 
 const char* ssid = "SieuCoi";
 const char* password = "0902838500";
@@ -18,22 +18,19 @@ void setup() {
         Serial.println("Connecting to WiFi..");
     }
 
-    Serial.println("Connected to the WiFi network");
+    PairingManager pairingManager;
+    pairingManager.begin(IPAddress(192, 168, 2, 22), 6467, "service_name");
 
-    int e = ssl_connect(IPAddress(192, 168, 2, 22), 6467);
-    Serial.println(e);
+    while (true) {
+        pairingManager.loop();
+    }
 
-    ssl_send("Hello, world!", 13);
+
+    Serial.println("[INFO]: DONE");
+
 }
 
 void loop() {
 
-    char buffer[80];
-    int sz = ssl_read(buffer, sizeof(buffer) - 1);
-    if (sz > 0) {
-        for (int i = 0; i < sz; i++) {
-            Serial.print(buffer[i]);
-        }
-    }
 }
 #endif

@@ -1,6 +1,57 @@
 #include "pairing/PairingManager.h"
+#include "utils.h"
 
 PairingMessageManager pairingMessageManager;
+
+void addModulusAndExponent(WOLFSSL_X509* cert, Sha256 &sha256) {
+    // Lấy Public Key từ chứng chỉ
+    WOLFSSL_EVP_PKEY* pubKey = wolfSSL_X509_get_pubkey(cert);
+    if (!pubKey) {
+        printf("Lỗi: Không lấy được public key từ chứng chỉ.\n");
+        return;
+    }
+
+    if (wolfSSL_EVP_PKEY_id(pubKey) != EVP_PKEY_RSA) {
+        Serial.println("[ERROR]: Public key is not RSA");
+        wolfSSL_EVP_PKEY_free(pubKey);
+        return;
+    }
+
+    // get modulus and exponent
+
+    RsaKey rsaKey;
+    word32 idx = 0;
+    byte der[2048];
+    byte* pdep = der;
+    int derSz = wolfSSL_i2d_PublicKey(pubKey, (unsigned char **)&pdep);
+    if (derSz <= 0) {
+        printf("Failed to convert public key to DER format\n");
+        return;
+    }
+
+    
+    // Giải mã DER để lấy thông tin RSA
+    wc_InitRsaKey(&rsaKey, NULL);
+    if (wc_RsaPublicKeyDecode(der, &idx, &rsaKey, derSz) != 0) {
+        printf("Failed to decode RSA public key\n");
+        return;
+    }
+
+
+    // en
+
+    
+    wc_Sha256Update(&sha256, (byte *)rsaKey.n.dp, rsaKey.n.used * sizeof(fp_digit));
+    // add 3 bytes ex
+    byte ex[1] = {0};
+    wc_Sha256Update(&sha256, ex, 1);
+    wc_Sha256Update(&sha256, (byte *)&rsaKey.e.dp, rsaKey.e.used * sizeof(fp_digit));
+
+    // Giải phóng bộ nhớ
+    wc_FreeRsaKey(&rsaKey);
+    wolfSSL_EVP_PKEY_free(pubKey);
+}
+
 
 bool PairingManager::sendCode(const String& code) {
     if (code.length() != 6) {
@@ -10,80 +61,71 @@ bool PairingManager::sendCode(const String& code) {
 
     Serial.printf("[DEBUG]: Sending code: %s\n", code);
 
-    const mbedtls_x509_crt *server_cert = client.getPeerCertificate();
-    mbedtls_x509_crt *client_cert;
+    // TODO: làm tiếp 
+    // NOTE: không biết là nó thêm vào kiểu gì nên đợi về nhà xem mới biết được 
+    WOLFSSL_X509 *server_cert = ssl_get_peer_certificate();
+    WOLFSSL_X509 *client_cert = ssl_get_certificate();
 
-    mbedtls_x509_crt_init(client_cert);
-    mbedtls_x509_crt_parse(client_cert, (const unsigned char *)client_cert_pem, strlen(client_cert_pem) + 1);
+    byte hash[32];
+    Sha256 sha256[1];
+    if (wc_InitSha256(sha256) != 0) {
+        Serial.println("[ERROR]: SHA256 initialization failed!");
+        return false;
+    }
 
-    const mbedtls_rsa_context* client_rsa = mbedtls_pk_rsa(client_cert->pk);
-    const mbedtls_rsa_context* server_rsa = mbedtls_pk_rsa(server_cert->pk);
+    addModulusAndExponent(client_cert, *sha256);
+    addModulusAndExponent(server_cert, *sha256);
 
-    std::vector<uint8_t> last4 = hexStringToBytes(code.substring(2, 6));
+    // TODO: thêm code vào sha256
 
-    SHA256 sha256;
-    uint8_t hash[32];
+    wc_Sha256Final(sha256, hash);
 
-    sha256.update(client_rsa->N.p, client_rsa->N.n);
-    sha256.update(client_rsa->E.p, client_rsa->E.n);
-    sha256.update(server_rsa->N.p, server_rsa->N.n);
-    sha256.update(server_rsa->E.p, server_rsa->E.n);
-    sha256.update(last4.data(), last4.size());
-
-    sha256.finalize(hash, sizeof(hash));
-    
-    // TODO: check if the hash is correct
-    // std::vector<uint8_t> hashVec = hexStringToBytes();
-
-    uint8_t* buffer = pairingMessageManager.createPairingSecret(hash);
-    client.write(buffer, buffer[0] + 1);
+    uint8_t* buffer = pairingMessageManager.createPairingSecret((uint8_t *) hash);
+    ssl_send((char *) buffer, buffer[0] + 1);
     free(buffer);
     return true;
 }
 
 bool PairingManager::connected() {
-    return client.connected();
+    return ssl_connected();
 }
 
 void PairingManager::begin(IPAddress host, uint16_t port, char* service_name) {
-    client.setCertificate(client_cert_pem);   // Cài đặt chứng chỉ
-    client.setPrivateKey(client_key_pem); 
-    client.setCACert(rootCA);
 
-    Serial.printf("[DEBUG]: %s:%d Pairing started\n", host.toString(), port);
-    if (!client.connect(host, port)) {
+
+    if (ssl_connect(host, port) < 0) {
         Serial.println("[ERROR]: Connection failed!");
         return;
     }
 
     Serial.printf("[DEBUG]: %s Pairing connected\n", host.toString());
     uint8_t* buffer = pairingMessageManager.createPairingRequest(service_name);
-    client.write(buffer, buffer[0] + 1);
+    ssl_send((char *) buffer, buffer[0] + 1);
     free(buffer);
-
-    Serial.printf("[DEBUG]: %s Pairing Connection closed\n", host);
 }
 
 void PairingManager::loop() {
-    while (client.connected()) {
-        while (client.available()) {
-            uint8_t buffer[256];
-            size_t len = client.read(buffer, sizeof(buffer));
-            chunks.insert(chunks.end(), buffer, buffer + len);
+    uint8_t buffer[256];
+    int len = ssl_read((char *) buffer, sizeof(buffer));
+    if (len <= 0) {
+        return;
+    }
 
-            if (chunks.size() > 0 && chunks[0] == chunks.size() - 1) {
-                Pairing__PairingMessage *response = pairing__pairing_message__unpack(NULL, chunks.size() - 1, chunks.data() + 1);
-                if (response->status != PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK) {
-                    client.stop();
-                    Serial.println(response->status);
-                } else {
-                    handleResponse(response);
-                }
-                chunks.clear();
+    Serial.println();
+    chunks.insert(chunks.end(), buffer, buffer + len);
 
-                pairing__pairing_message__free_unpacked(response, NULL);
-            }
+    if (chunks.size() > 0 && chunks[0] == chunks.size() - 1) {
+        printPacket(chunks.data(), chunks.size());        
+        Pairing__PairingMessage *response = pairing__pairing_message__unpack(NULL, chunks.size() - 1, chunks.data() + 1);
+        if (response->status != PAIRING__PAIRING_MESSAGE__STATUS__STATUS_OK) {
+            ssl_stop();
+            Serial.println(response->status);
+        } else {
+            handleResponse(response);
         }
+        chunks.clear();
+
+        pairing__pairing_message__free_unpacked(response, NULL);
     }
 }
 
@@ -106,23 +148,27 @@ std::vector<uint8_t> PairingManager::hexStringToBytes(const String &hexString) {
     return bytes;  // Trả về mảng byte
 }   
 void PairingManager::handleResponse(Pairing__PairingMessage *message) {
-    if (message->pairing_configuration_ack) {
-        uint8_t* buffer = pairingMessageManager.createPairingConfiguration();
-        client.write(buffer, buffer[0] + 1);
+    if (message->pairing_request_ack) {
+        Serial.printf("[DEBUG]: Pairing request ack\n");
+        uint8_t* buffer = pairingMessageManager.createPairingOption();
+        ssl_send((char *) buffer, buffer[0] + 1);
         free(buffer);
     } 
     else if (message->pairing_option) {
-        uint8_t* buffer = pairingMessageManager.createPairingOption();
-        client.write(buffer, buffer[0] + 1);
+        uint8_t* buffer = pairingMessageManager.createPairingConfiguration();
+        ssl_send((char *) buffer, buffer[0] + 1);
         free(buffer);
     } 
     else if (message->pairing_configuration_ack) {
         // Emit 'secret' event
         // await input from user
+
+        // TODO: thêm call back
+        Serial.printf("[DEBUG]: Pairing configuration ack--------------------------------------\n");
     } 
     else if (message->pairing_secret_ack) {
         Serial.printf("[DEBUG]: Paired!\n");
-        client.stop();
+        ssl_stop();
     } 
     else {
         Serial.printf("[ERROR]: What Else?\n");

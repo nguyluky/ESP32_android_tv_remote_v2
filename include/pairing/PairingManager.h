@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <Crypto.h>
-#include <SHA256.h>
+// #include <SHA256.h>
 #include <vector>
 #include "pairing/PairingMessageManager.h"
 #include "certificate/CertificateGenerator.h"
+#include "RemoteClient.h"
 
 #ifndef PAIRINGMANAGER_H
 #define PAIRINGMANAGER_H
@@ -18,7 +19,6 @@ public:
 private:
     std::vector<uint8_t> hexStringToBytes(const String &hexString);
     void handleResponse(Pairing__PairingMessage *message);
-    WiFiClientSecure client;
     std::vector<uint8_t> chunks;
 };
 #endif

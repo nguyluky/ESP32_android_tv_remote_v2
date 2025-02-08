@@ -5,6 +5,8 @@ static WOLFSSL_CTX* ctx = NULL;
 static WOLFSSL* ssl = NULL;
 static char wc_error_message[80 + 1];
 static char errBuf[80];
+static char *cert_buffer = NULL;
+static char *key_buffer = NULL;
 
 static int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx) {
     int sent = 0;
@@ -55,16 +57,17 @@ int setup_certificates(void) {
     
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
 
-    ret = wolfSSL_CTX_load_verify_buffer(ctx, CTX_CA_CERT, CTX_CA_CERT_SIZE, CTX_CA_CERT_TYPE);
-    if (ret == WOLFSSL_SUCCESS) {
-        Serial.println("[DEBUG]: Success: load_verify CTX_CA_CERT");
-    }
-    else {
-        Serial.println("[ERROR]: wolfSSL_CTX_load_verify_buffer failed: ");
-        wc_ErrorString(ret, wc_error_message);
-        Serial.println(wc_error_message);
-        return -1;
-    }
+    // NOTE: not verifying the server certificate
+    // ret = wolfSSL_CTX_load_verify_buffer(ctx, CTX_CA_CERT, CTX_CA_CERT_SIZE, CTX_CA_CERT_TYPE);
+    // if (ret == WOLFSSL_SUCCESS) {
+    //     Serial.println("[DEBUG]: Success: load_verify CTX_CA_CERT");
+    // }
+    // else {
+    //     Serial.println("[ERROR]: wolfSSL_CTX_load_verify_buffer failed: ");
+    //     wc_ErrorString(ret, wc_error_message);
+    //     Serial.println(wc_error_message);
+    //     return -1;
+    // }
 
     ret = wolfSSL_CTX_use_certificate_buffer(ctx, CTX_CLIENT_CERT, CTX_CLIENT_CERT_SIZE, CTX_CLIENT_CERT_TYPE);
     if (ret == WOLFSSL_SUCCESS) {
@@ -137,10 +140,16 @@ int error_check_ssl(WOLFSSL* ssl, int this_ret, const __FlashStringHelper* messa
 
 // ==========================================
 int ssl_connect(IPAddress ip, uint16_t port) {
+
+    if (client.connected()) {
+        Serial.println("[ERROR]: Already connected to the server");
+        return -1;
+    }
+
     setup_wolfssl();
-    // setup_certificates();
+    setup_certificates();
     // TODO: Implement setup_certificates
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+    // wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
     
     wolfSSL_SetIOSend(ctx, EthernetSend);
     wolfSSL_SetIORecv(ctx, EthernetReceive);
@@ -177,10 +186,7 @@ int ssl_connect(IPAddress ip, uint16_t port) {
 
 uint8_t ssl_send(const char* msg, int msgSz) {
     int ret = wolfSSL_write(ssl, msg, msgSz);
-    if (ret == msgSz) {
-        return 1;
-    }
-    return -1;
+    return ret;
 }
 
 int ssl_available() {
@@ -191,3 +197,16 @@ int ssl_read(char* reply, int sz) {
     return wolfSSL_read(ssl, reply, sz);
 }
 
+void ssl_stop() {
+    if (ssl != NULL) {
+        wolfSSL_free(ssl);
+    }
+    if (ctx != NULL) {
+        wolfSSL_CTX_free(ctx);
+    }
+    client.stop();
+}
+
+uint8_t ssl_connected() {
+    return client.connected();
+}

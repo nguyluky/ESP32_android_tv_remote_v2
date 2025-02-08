@@ -79,7 +79,7 @@ enum {
     SHA_DIGEST_LENGTH = 20
 };
 
-typedef WOLFSSL_SHA_CTX SHA_CTX;
+typedef WOLFSSL_SHA_CTX W_SHA_CTX;
 
 #define SHA_Init wolfSSL_SHA_Init
 #define SHA_Update wolfSSL_SHA_Update

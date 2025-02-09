@@ -104,6 +104,7 @@
 #define SINGLE_THREADED
 
 
+#define KEEP_OUR_CERT
 /* Optional OPENSSL compatibility */
 #define OPENSSL_EXTRA
 /* #define OPENSSL_ALL */

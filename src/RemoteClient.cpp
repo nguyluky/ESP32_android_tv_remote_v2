@@ -210,3 +210,11 @@ void ssl_stop() {
 uint8_t ssl_connected() {
     return client.connected();
 }
+
+WOLFSSL_X509 *ssl_get_peer_certificate() {
+    return wolfSSL_get_peer_certificate(ssl);
+}
+
+WOLFSSL_X509* ssl_get_certificate() {
+    return wolfSSL_get_certificate(ssl);
+}

@@ -19,12 +19,22 @@ void setup() {
     }
 
     PairingManager pairingManager;
-    pairingManager.begin(IPAddress(192, 168, 2, 22), 6467, "service_name");
+    pairingManager.begin(IPAddress(192, 168, 2, 243), 6467, "service_name");
 
-    while (true) {
+    while (pairingManager.connected()) {
         pairingManager.loop();
+        if (pairingManager.isSecure) {
+            Serial.println("Enter code: ");
+            if (Serial.available() > 0) {
+                String code = Serial.readString();
+                Serial.println(code);
+                if (code.length() == 6) {
+                    pairingManager.sendCode(code);
+                }
+            }
+        }
+        delay(500);
     }
-
 
     Serial.println("[INFO]: DONE");
 

@@ -17,38 +17,46 @@ void addModulusAndExponent(WOLFSSL_X509* cert, Sha256 &sha256) {
         return;
     }
 
-    // get modulus and exponent
+    Serial.println("[DEBUG]: Successfully got RSA public key");
 
-    RsaKey rsaKey;
-    word32 idx = 0;
-    byte der[2048];
-    byte* pdep = der;
-    int derSz = wolfSSL_i2d_PublicKey(pubKey, (unsigned char **)&pdep);
-    if (derSz <= 0) {
-        printf("Failed to convert public key to DER format\n");
+    // // get modulus and exponent
+
+
+    WOLFSSL_RSA *rsaKey = pubKey->rsa;
+
+    Serial.println("[DEBUG]: Successfully got RSA key");
+
+    // rsaKey->n
+    int modulusBitSize = mp_unsigned_bin_size((mp_int *)rsaKey->n->internal);
+    if (modulusBitSize <= 0) {
+        Serial.println("[ERROR]: Failed to get modulus size");
         return;
     }
-
-    
-    // Giải mã DER để lấy thông tin RSA
-    wc_InitRsaKey(&rsaKey, NULL);
-    if (wc_RsaPublicKeyDecode(der, &idx, &rsaKey, derSz) != 0) {
-        printf("Failed to decode RSA public key\n");
+    unsigned char* modulusBytes = (unsigned char*)malloc(modulusBitSize);
+    if (mp_to_unsigned_bin((mp_int*)rsaKey->n->internal, modulusBytes) != MP_OKAY) {
+        Serial.println("[ERROR]: Failed to convert modulus to bytes");
+        free(modulusBytes);
         return;
     }
+    // printPacket(modulusBytes, modulusBitSize);
+    wc_Sha256Update(&sha256, modulusBytes, modulusBitSize);
+    free(modulusBytes);
 
+    int exponentBitSize = mp_unsigned_bin_size((mp_int *)rsaKey->e->internal);
+    if (exponentBitSize <= 0) {
+        Serial.println("[ERROR]: Failed to get exponent size");
+        return;
+    }
+    unsigned char* exponentBytes = (unsigned char*)malloc(exponentBitSize);
+    if (mp_to_unsigned_bin((mp_int*)rsaKey->e->internal, exponentBytes) != MP_OKAY) {
+        Serial.println("[ERROR]: Failed to convert exponent to bytes");
+        free(exponentBytes);
+        return;
+    }
+    // printPacket(exponentBytes, exponentBitSize);
+    wc_Sha256Update(&sha256, exponentBytes, exponentBitSize);
+    free(exponentBytes);
 
-    // en
-
-    
-    wc_Sha256Update(&sha256, (byte *)rsaKey.n.dp, rsaKey.n.used * sizeof(fp_digit));
-    // add 3 bytes ex
-    byte ex[1] = {0};
-    wc_Sha256Update(&sha256, ex, 1);
-    wc_Sha256Update(&sha256, (byte *)&rsaKey.e.dp, rsaKey.e.used * sizeof(fp_digit));
-
-    // Giải phóng bộ nhớ
-    wc_FreeRsaKey(&rsaKey);
     wolfSSL_EVP_PKEY_free(pubKey);
 }
 
@@ -73,13 +81,30 @@ bool PairingManager::sendCode(const String& code) {
         return false;
     }
 
+    Serial.println("[DEBUG]: Adding modulus and exponent to hash");
+
     addModulusAndExponent(client_cert, *sha256);
     addModulusAndExponent(server_cert, *sha256);
 
     // TODO: thêm code vào sha256
+    unsigned char codeBytes[3] = {0,0,0};
+    for (int i = 0; i < 6; i+=2) {
+        codeBytes[i/2] = strtol(code.substring(i, i+2).c_str(), NULL, 16);
+    }
+
+    wc_Sha256Update(sha256, codeBytes+1, 2);
 
     wc_Sha256Final(sha256, hash);
 
+    Serial.println("[DEBUG]: Hash:");
+    printPacket(hash, 32);
+    Serial.printf("[DEBUG]: check sum: ");
+    printPacket(codeBytes, 3);
+
+    if (hash[0] != codeBytes[0] ) {
+        Serial.println("[ERROR]: Checksum failed!");
+        return false;
+    }
     uint8_t* buffer = pairingMessageManager.createPairingSecret((uint8_t *) hash);
     ssl_send((char *) buffer, buffer[0] + 1);
     free(buffer);
@@ -106,11 +131,10 @@ void PairingManager::begin(IPAddress host, uint16_t port, char* service_name) {
 
 void PairingManager::loop() {
     uint8_t buffer[256];
-    int len = ssl_read((char *) buffer, sizeof(buffer));
-    if (len <= 0) {
+    if (ssl_available() <= 0) {
         return;
     }
-
+    int len = ssl_read((char *) buffer, sizeof(buffer));
     Serial.println();
     chunks.insert(chunks.end(), buffer, buffer + len);
 
@@ -129,24 +153,6 @@ void PairingManager::loop() {
     }
 }
 
-std::vector<uint8_t> PairingManager::hexStringToBytes(const String &hexString) {
-    std::vector<uint8_t> bytes;
-
-    // Chắc chắn rằng chuỗi hex có độ dài chẵn
-    if (hexString.length() % 2 != 0) {
-        Serial.println("Chuỗi hex phải có độ dài chẵn.");
-        return bytes;
-    }
-
-    // Lặp qua từng cặp ký tự trong chuỗi hex và chuyển đổi thành byte
-    for (int i = 0; i < hexString.length(); i += 2) {
-        String byteString = hexString.substring(i, i + 2);  // Lấy cặp ký tự
-        uint8_t byte = strtol(byteString.c_str(), NULL, 16);  // Chuyển đổi hex thành byte
-        bytes.push_back(byte);  // Thêm vào mảng bytes
-    }
-
-    return bytes;  // Trả về mảng byte
-}   
 void PairingManager::handleResponse(Pairing__PairingMessage *message) {
     if (message->pairing_request_ack) {
         Serial.printf("[DEBUG]: Pairing request ack\n");
@@ -160,13 +166,11 @@ void PairingManager::handleResponse(Pairing__PairingMessage *message) {
         free(buffer);
     } 
     else if (message->pairing_configuration_ack) {
-        // Emit 'secret' event
-        // await input from user
-
-        // TODO: thêm call back
-        Serial.printf("[DEBUG]: Pairing configuration ack--------------------------------------\n");
+        Serial.printf("[DEBUG]: Pairing configuration ack\n");
+        isSecure = true;
     } 
     else if (message->pairing_secret_ack) {
+        isSecure = false;
         Serial.printf("[DEBUG]: Paired!\n");
         ssl_stop();
     } 

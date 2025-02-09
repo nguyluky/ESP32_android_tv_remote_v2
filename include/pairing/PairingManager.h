@@ -15,6 +15,7 @@ public:
     void begin(IPAddress host, uint16_t port, char* service_name);
     bool connected();
     void loop();
+    bool isSecure = false;
 
 private:
     std::vector<uint8_t> hexStringToBytes(const String &hexString);

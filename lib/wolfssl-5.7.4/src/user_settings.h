@@ -31,10 +31,12 @@
 #define WOLFSSL_IGNORE_FILE_WARN
 
 #define NO_FILESYSTEM
-#define USE_CERT_BUFFERS_2048
+// #define USE_CERT_BUFFERS_2048
 
 /* Make sure this is not an ESP-IDF file */
 #undef  WOLFSSL_ESPIDF
+
+#define WOLFSSL_NO_ABORT
 
 #define HAVE_ECC
 #define WOLFSSL_SMALL_STACK
@@ -480,6 +482,6 @@
         #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_1024
         #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #else
-        #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
+        // #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
     #endif
 #endif

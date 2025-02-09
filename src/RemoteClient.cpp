@@ -1,4 +1,5 @@
 #include "RemoteClient.h"
+#include "certificate/CertificateGenerator.h"
 WiFiClient client;
 
 static WOLFSSL_CTX* ctx = NULL;
@@ -57,19 +58,7 @@ int setup_certificates(void) {
     
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
 
-    // NOTE: not verifying the server certificate
-    // ret = wolfSSL_CTX_load_verify_buffer(ctx, CTX_CA_CERT, CTX_CA_CERT_SIZE, CTX_CA_CERT_TYPE);
-    // if (ret == WOLFSSL_SUCCESS) {
-    //     Serial.println("[DEBUG]: Success: load_verify CTX_CA_CERT");
-    // }
-    // else {
-    //     Serial.println("[ERROR]: wolfSSL_CTX_load_verify_buffer failed: ");
-    //     wc_ErrorString(ret, wc_error_message);
-    //     Serial.println(wc_error_message);
-    //     return -1;
-    // }
-
-    ret = wolfSSL_CTX_use_certificate_buffer(ctx, CTX_CLIENT_CERT, CTX_CLIENT_CERT_SIZE, CTX_CLIENT_CERT_TYPE);
+    ret = wolfSSL_CTX_use_certificate_buffer(ctx, client_cert_der, client_cert_der_len, WOLFSSL_FILETYPE_ASN1);
     if (ret == WOLFSSL_SUCCESS) {
         Serial.println("[DEBUG]: Success: use certificate: ");
         Serial.println(xstr(CTX_SERVER_CERT));
@@ -81,7 +70,7 @@ int setup_certificates(void) {
         return -1;
     }
 
-    ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, CTX_CLIENT_KEY, CTX_CLIENT_KEY_SIZE, CTX_CLIENT_KEY_TYPE);
+    ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_key_der, client_key_der_len, WOLFSSL_FILETYPE_ASN1);
     if (ret == WOLFSSL_SUCCESS) {
         Serial.println("[DEBUG]: Success: use private key buffer: ");
         Serial.println(xstr(CTX_SERVER_KEY));
@@ -140,6 +129,7 @@ int error_check_ssl(WOLFSSL* ssl, int this_ret, const __FlashStringHelper* messa
 
 // ==========================================
 int ssl_connect(IPAddress ip, uint16_t port) {
+    int ret = 0;
 
     if (client.connected()) {
         Serial.println("[ERROR]: Already connected to the server");
@@ -154,7 +144,7 @@ int ssl_connect(IPAddress ip, uint16_t port) {
     wolfSSL_SetIOSend(ctx, EthernetSend);
     wolfSSL_SetIORecv(ctx, EthernetReceive);
 
-    int ret = client.connect(ip, port);
+    ret = client.connect(ip, port);
     if (ret == 0) {
         Serial.println("[ERROR]: Connection failed");
         return -1;

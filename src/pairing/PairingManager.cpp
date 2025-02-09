@@ -135,6 +135,10 @@ void PairingManager::loop() {
         return;
     }
     int len = ssl_read((char *) buffer, sizeof(buffer));
+    if (len <= 0) {
+        Serial.println("[ERROR]: Read failed");
+        return;
+    }
     Serial.println();
     chunks.insert(chunks.end(), buffer, buffer + len);
 

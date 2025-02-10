@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include "pairing/PairingManager.h"
 #include "remote/RemoteManager.h" 
+#include <ESPmDNS.h>
 
 const char* ssid = "SieuCoi";
 const char* password = "0902838500";
@@ -22,23 +23,26 @@ void setup() {
         Serial.println("Connecting to WiFi..");
     }
 
-    // PairingManager pairingManager;
-    // pairingManager.begin(IPAddress(192, 168, 2, 243), 6467, "service_name");
 
-    // while (pairingManager.connected()) {
-    //     pairingManager.loop();
-    //     if (pairingManager.isSecure) {
-    //         Serial.println("Enter code: ");
-    //         if (Serial.available() > 0) {
-    //             String code = Serial.readString();
-    //             Serial.println(code);
-    //             if (code.length() == 6) {
-    //                 pairingManager.sendCode(code);
-    //             }
-    //         }
-    //     }
-    //     delay(500);
-    // }
+    MDNS.begin("esp32");
+
+    while (true)
+    {
+        int len = MDNS.queryService("androidtvremote2", "tcp");
+        for (int i = 0; i < len; i++) {
+            Serial.print("Service ");
+            Serial.print(i + 1);
+            Serial.print(" : ");
+            Serial.print(MDNS.hostname(i));
+            Serial.print(" (");
+            Serial.print(MDNS.IP(i));
+            Serial.print(":");
+            Serial.print(MDNS.port(i));
+            // MDNS.txt
+            Serial.println(")");
+        }
+    }
+    
 
     remoteManager.start(IPAddress(192, 168, 2, 243), 6466);
     
@@ -49,7 +53,7 @@ void setup() {
 void loop() {
     remoteManager.loop();
 
-    if (remoteManager.error_auth) {
+   if (remoteManager.error_auth) {
         pairingManager.begin(IPAddress(192, 168, 2, 243), 6467, "service_name");
         while (pairingManager.connected()) {
             pairingManager.loop();

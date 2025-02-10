@@ -17,6 +17,7 @@
         "ostream": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "evp.h": "c"
+        "evp.h": "c",
+        "remotemessage.pb-c.h": "c"
     }
 }

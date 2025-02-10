@@ -69,6 +69,25 @@ void loop() {
 
         remoteManager.start(IPAddress(192, 168, 2, 243), 6466);
     }
+
+
+    if (Serial.available() > 0) {
+        String command = Serial.readString();
+        Serial.println(command);
+        if (command == "power") {
+            remoteManager.sendPower();
+        } else if (command == "up") {
+            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_UP, REMOTE__REMOTE_DIRECTION__SHORT);
+        } else if (command == "down") {
+            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_DOWN, REMOTE__REMOTE_DIRECTION__SHORT);
+        } else if (command == "left") {
+            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_LEFT, REMOTE__REMOTE_DIRECTION__SHORT);
+        } else if (command == "right") {
+            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_RIGHT, REMOTE__REMOTE_DIRECTION__SHORT);
+        } else if (command == "ok") {
+            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_CENTER, REMOTE__REMOTE_DIRECTION__SHORT);
+        } 
+    }
     delay(100);
 }
 #endif

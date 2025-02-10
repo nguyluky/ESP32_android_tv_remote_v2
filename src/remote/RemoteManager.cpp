@@ -41,11 +41,11 @@ void RemoteManager::loop()
         error_auth = true;
         return;
     }
-    Serial.printf("[INFO]: Read %d bytes\n", len);
     chunks.insert(chunks.end(), buffer, buffer + len);
 
     if (chunks.size() > 0 && chunks[0] == chunks.size() - 1)
     {
+        printPacket(chunks.data(), chunks.size());
         Remote__RemoteMessage *message = remote__remote_message__unpack(NULL, chunks.size() - 1, chunks.data() + 1);
 
         if (message->remote_configure)

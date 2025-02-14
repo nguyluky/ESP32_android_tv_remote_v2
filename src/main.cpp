@@ -2,67 +2,162 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "pairing/PairingManager.h"
-#include "remote/RemoteManager.h" 
-#include <ESPmDNS.h>
+#include "remote/RemoteManager.h"
+#include "remote/RemoteKeycode.h"
 
-const char* ssid = "SieuCoi";
-const char* password = "0902838500";
+const char *ssid = "SieuCoi";
+const char *password = "0902838500";
 
 RemoteManager remoteManager;
 PairingManager pairingManager;
 
-void setup() {
+String macAddress = "40:AA:56:62:5E:06";
+
+const uint8_t pin_switch[] = {
+    GPIO_NUM_32, GPIO_NUM_33, GPIO_NUM_25, GPIO_NUM_26,
+    GPIO_NUM_27, GPIO_NUM_14,
+
+    GPIO_NUM_23, GPIO_NUM_22, GPIO_NUM_21,
+    GPIO_NUM_19, GPIO_NUM_18, GPIO_NUM_5};
+
+const uint8_t keys_pin[][2] = {
+    {7, 8}, {7, 11}, {7, 10}, {6, 7}, {6, 8}, {6, 11}, {6, 10}, {8, 9}, {9, 11}, {9, 10}, {0, 8}, {0, 11}, {0, 10}, {1, 8}, {1, 11}, {1, 10}, {2, 8}, {2, 11}, {2, 10}, {10, 11}, {3, 8}, {3, 11}, {3, 10}, {8, 10}, {4, 8}, {4, 11}, {4, 10}};
+
+bool isPressed[27] = {false};
+
+IPAddress tv_ip;
+
+void sendKey(int key)
+{
+    switch (key)
+    {
+    case 0:
+        remoteManager.sendKey(KEYCODE_VOLUME_UP, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 1:
+        remoteManager.sendKey(KEYCODE_POWER, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 2:
+        remoteManager.sendKey(KEYCODE_VOLUME_DOWN, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 3:
+        // youtube app
+        // remoteManager.sendAppLink();
+        break;
+    case 4:
+        // netflix app
+        // remoteManager.sendAppLink();
+        break;
+    case 5:
+        // 
+        break;
+    case 6:
+        break;
+    case 7:
+        remoteManager.sendKey(KEYCODE_1, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 8:
+        remoteManager.sendKey(KEYCODE_2, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 9:
+        remoteManager.sendKey(KEYCODE_3, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 10:
+        remoteManager.sendKey(KEYCODE_4, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 11:
+        remoteManager.sendKey(KEYCODE_5, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 12:
+        remoteManager.sendKey(KEYCODE_6, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 13:
+        remoteManager.sendKey(KEYCODE_7, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 14:
+        remoteManager.sendKey(KEYCODE_8, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 15:
+        remoteManager.sendKey(KEYCODE_9, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 16:
+        remoteManager.sendKey(KEYCODE_BACK, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 17:
+        remoteManager.sendKey(KEYCODE_0, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 18:
+        remoteManager.sendKey(KEYCODE_HOME, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    
+    // ====================
+
+    case 21:
+        remoteManager.sendKey(KEYCODE_DPAD_CENTER, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 19:
+        remoteManager.sendKey(KEYCODE_DPAD_UP, REMOTE__REMOTE_DIRECTION__SHORT);
+        break; 
+    case 20:
+        remoteManager.sendKey(KEYCODE_DPAD_LEFT, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 22:
+        remoteManager.sendKey(KEYCODE_DPAD_RIGHT, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    case 23:
+        remoteManager.sendKey(KEYCODE_DPAD_DOWN, REMOTE__REMOTE_DIRECTION__SHORT);
+        break;
+    default:
+        break;
+    }
+}
+
+
+void setup()
+{
     Serial.begin(115200);
     Serial.println("Hello, world!");
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
 
-    while (WiFi.status() != WL_CONNECTED) {
+    for (int j = 0; j < 12; j++) {
+        pinMode(pin_switch[j], INPUT_PULLUP);
+    }
+
+    while (WiFi.status() != WL_CONNECTED)
+    {
         delay(1000);
         Serial.println("Connecting to WiFi..");
     }
 
+    tv_ip = findTVIp(macAddress);
 
-    MDNS.begin("esp32");
 
-    while (true)
-    {
-        int len = MDNS.queryService("androidtvremote2", "tcp");
-        for (int i = 0; i < len; i++) {
-            Serial.print("Service ");
-            Serial.print(i + 1);
-            Serial.print(" : ");
-            Serial.print(MDNS.hostname(i));
-            Serial.print(" (");
-            Serial.print(MDNS.IP(i));
-            Serial.print(":");
-            Serial.print(MDNS.port(i));
-            // MDNS.txt
-            Serial.println(")");
-        }
-    }
-    
+    remoteManager.start(tv_ip, 6466);
 
-    remoteManager.start(IPAddress(192, 168, 2, 243), 6466);
-    
     Serial.println("[INFO]: start loop");
-
 }
 
-void loop() {
+void loop()
+{
     remoteManager.loop();
 
-   if (remoteManager.error_auth) {
-        pairingManager.begin(IPAddress(192, 168, 2, 243), 6467, "service_name");
-        while (pairingManager.connected()) {
+    if (remoteManager.error_auth)
+    {
+        pairingManager.begin(tv_ip, 6467, "service_name");
+        while (pairingManager.connected())
+        {
             pairingManager.loop();
-            if (pairingManager.isSecure) {
+            if (pairingManager.isSecure)
+            {
                 Serial.println("Enter code: ");
-                if (Serial.available() > 0) {
+                if (Serial.available() > 0)
+                {
                     String code = Serial.readString();
                     Serial.println(code);
-                    if (code.length() == 6) {
+                    if (code.length() == 6)
+                    {
                         pairingManager.sendCode(code);
                     }
                 }
@@ -71,27 +166,29 @@ void loop() {
         }
         remoteManager.error_auth = false;
 
-        remoteManager.start(IPAddress(192, 168, 2, 243), 6466);
+        remoteManager.start(tv_ip, 6466);
     }
 
+    for (int i = 0; i < 27; i++) {
 
-    if (Serial.available() > 0) {
-        String command = Serial.readString();
-        Serial.println(command);
-        if (command == "power") {
-            remoteManager.sendPower();
-        } else if (command == "up") {
-            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_UP, REMOTE__REMOTE_DIRECTION__SHORT);
-        } else if (command == "down") {
-            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_DOWN, REMOTE__REMOTE_DIRECTION__SHORT);
-        } else if (command == "left") {
-            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_LEFT, REMOTE__REMOTE_DIRECTION__SHORT);
-        } else if (command == "right") {
-            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_RIGHT, REMOTE__REMOTE_DIRECTION__SHORT);
-        } else if (command == "ok") {
-            remoteManager.sendKey(REMOTE__REMOTE_KEY_CODE__KEYCODE_DPAD_CENTER, REMOTE__REMOTE_DIRECTION__SHORT);
-        } 
+        pinMode(pin_switch[keys_pin[i][0]], OUTPUT);
+        digitalWrite(pin_switch[keys_pin[i][0]], LOW);
+
+        if (digitalRead(pin_switch[keys_pin[i][1]]) == LOW) {
+            if (!isPressed[i]) {
+                isPressed[i] = true;
+                Serial.printf("Key: %d\n", i);
+                sendKey(i);
+            }
+        }    
+        else {
+            isPressed[i] = false;
+        }
+
+        pinMode(pin_switch[keys_pin[i][0]], INPUT_PULLUP);
+
     }
+
     delay(100);
 }
 #endif

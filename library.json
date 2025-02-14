@@ -1,0 +1,26 @@
+{
+  "name": "Android TV Remote",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": "esp32, android, tv, remote",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/username/hello-world.git"
+  },
+  "authors":
+  [
+    {
+      "name": "nguyluky",
+      "email": "nguyluky@gmail.com",
+      "url": "",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://www.helloworld.org/",
+  "dependencies": {
+  },
+  "frameworks": "*",
+  "platforms": "espressif32"
+}

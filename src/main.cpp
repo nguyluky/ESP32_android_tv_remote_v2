@@ -21,7 +21,13 @@ const uint8_t pin_switch[] = {
     GPIO_NUM_19, GPIO_NUM_18, GPIO_NUM_5};
 
 const uint8_t keys_pin[][2] = {
-    {7, 8}, {7, 11}, {7, 10}, {6, 7}, {6, 8}, {6, 11}, {6, 10}, {8, 9}, {9, 11}, {9, 10}, {0, 8}, {0, 11}, {0, 10}, {1, 8}, {1, 11}, {1, 10}, {2, 8}, {2, 11}, {2, 10}, {10, 11}, {3, 8}, {3, 11}, {3, 10}, {8, 10}, {4, 8}, {4, 11}, {4, 10}};
+    {7, 8}, {7, 11}, {7, 10}, {6, 7}, {6, 8},
+    {6, 11}, {6, 10}, {8, 9}, {9, 11}, {9, 10}, 
+    {0, 8}, {0, 11}, {0, 10}, {1, 8}, {1, 11}, 
+    {1, 10}, {2, 8}, {2, 11}, {2, 10}, {10, 11}, 
+    {3, 8}, {3, 11}, {3, 10}, {8, 10}, {4, 8}, 
+    {4, 11}, {4, 10}
+};
 
 bool isPressed[27] = {false};
 
@@ -117,6 +123,8 @@ void setup()
 {
     Serial.begin(115200);
     Serial.println("Hello, world!");
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
@@ -129,14 +137,17 @@ void setup()
     {
         delay(1000);
         Serial.println("Connecting to WiFi..");
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     }
 
     tv_ip = findTVIp(macAddress);
 
+    digitalWrite(LED_BUILTIN, LOW);
 
     remoteManager.start(tv_ip, 6466);
 
     Serial.println("[INFO]: start loop");
+    digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop()
@@ -162,11 +173,13 @@ void loop()
                     }
                 }
             }
-            delay(500);
+            delay(1000);
+            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
         }
         remoteManager.error_auth = false;
 
         remoteManager.start(tv_ip, 6466);
+        digitalWrite(LED_BUILTIN, HIGH);
     }
 
     for (int i = 0; i < 27; i++) {

@@ -4,6 +4,11 @@ This project is an implementation of an ESP32-based Android TV controller using 
 
 Key list you can see at [RemoteKeycode.h](./include/remote/RemoteKeycode.h)
 
+### TODO
+- [X] Pairing
+- [X] Send command
+- [ ] Add voice support
+
 ### Credits
 - Official [implementation](https://android.googlesource.com/platform/external/google-tv-pairing-protocol/+/refs/heads/master) of the pairing protocol in Java
 - [Implementation](https://github.com/farshid616/Android-TV-Remote-Controller-Python) in Python but for the old v1 protocol

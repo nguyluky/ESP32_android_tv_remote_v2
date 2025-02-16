@@ -137,6 +137,7 @@ bool RemoteManager::sendKey(Remote__RemoteKeyCode keyCode, Remote__RemoteDirecti
     // return remoteMessageManager.sendRemoteKeyInject(client, keyCode, direction);
     uint8_t *buffer = remoteMessageManager.createRemoteKeyInject(keyCode, direction);
     ssl_send((char *)buffer, buffer[0] + 1);
+    printPacket(buffer, buffer[0] + 1);
     free(buffer);
     return true;
 }

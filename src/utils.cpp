@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <ESPmDNS.h>
 
 void printPacket(uint8_t *packet, size_t len) {
     Serial.print("unit8array: [");
@@ -30,11 +31,11 @@ IPAddress findTVIp(String macAddress) {
             Serial.print("host_name = ");
             Serial.print(MDNS.hostname(i));
             ip = MDNS.IP(i);
-            Serial.print("IP = ");
+            Serial.print(",IP = ");
             Serial.print(ip.toString());
             if (MDNS.hasTxt(i, "bt")) {
-                String mc = MDNS.txt(1, "bt");
-                Serial.print("mac_address = ");
+                String mc = MDNS.txt(i, "bt");
+                Serial.print(",mac_address = ");
                 Serial.print(mc);
 
                 if (mc == macAddress) {
@@ -42,9 +43,15 @@ IPAddress findTVIp(String macAddress) {
                     break;
                 }
             }
-
+            Serial.println();
         }
+        delay(1000);
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     }
+    Serial.println();
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+
+    Serial.printf("Found TV IP: %s\n", ip.toString());
     MDNS.end();
     return ip;
 }
